@@ -1,8 +1,11 @@
 import pandas as pd
+import numpy as np
 import csv
 import datetime
 import matplotlib.pyplot as plt
-
+from dateutil.parser import parse
+from itertools import combinations
+from scipy import stats
 def str_to_date(string):
     return datetime.datetime.strptime(string, '%Y-%m-%d %H:%M:%S')
 
@@ -99,12 +102,68 @@ def ranges_frequency_histogram(range_dict):
     plt.legend()
     plt.show()
 
-# mydict = parse_file('netflow_data.csv')
-# dates_frequency_dict = dates_frequency(mydict)
-# write_dict(dates_frequency_dict, 'dates_frequency_dict')
-# range_dict = frequency_to_range(read_dict('dates_frequency_dict'))
-# ranges_frequency_histogram(range_dict)
-# write_dict(dict, 'before_remove')
-# dict = remove_dates(dict)
-# write_dict(dict, 'after_remove')
+def remove_unrelevant_dates(myDict):
+    startdate =datetime.datetime.strptime('25/01/2018','%d/%m/%Y')
+    enddate =datetime.datetime.strptime('27/07/2019','%d/%m/%Y')
+    #startdate =parse("25/01/2018")
+    #enddate =parse("27/07/2019")
+
+    for interface in list(myDict.keys()):
+        if(len(mydict[interface])==0):
+            continue
+        for date_anomaly in list(myDict[interface].keys()):
+            tmp=datetime.datetime.strptime(date_anomaly.split(" ")[0],'%d/%m/%Y')
+            #tmp=parse(date_anomaly.split(" ")[0])
+            if ((tmp < startdate) or (tmp > enddate)):
+                del mydict[interface][date_anomaly]
+    for interface in list(myDict.keys()):
+        if (len(mydict[interface]) == 0):
+            del mydict[interface]
+    return mydict
+
+
+def intersection(lst1, lst2):
+    lst3 = [value for value in lst1 if value in lst2]
+    return lst3
+
+
+def pearson_correlation(mydict):
+    interfacePairs = list(combinations(mydict, 2))
+    for interface1,interface2 in interfacePairs:
+        lstAnomallies1 = []
+        lstAnomallies2 = []
+        keys1 = list(mydict[interface1].keys())
+        keys2 = list(mydict[interface2].keys())
+        identicalDates=intersection(keys1, keys2)
+        #should we have minimum identical dates?
+        if(len(identicalDates)>1):
+            for identicalDate in identicalDates:
+                lstAnomallies1.append(mydict[interface1][identicalDate])
+                lstAnomallies2.append(mydict[interface2][identicalDate])
+            lstAnomallies1=np.array(lstAnomallies1)
+            lstAnomallies2=np.array(lstAnomallies2)
+            print(stats.pearsonr(lstAnomallies1,lstAnomallies2))
+    return
+
+
+
+mydict = parse_file('netflow_data_small.csv')
+dates_frequency_dict = dates_frequency(mydict)
+write_dict(dates_frequency_dict, 'dates_frequency_dict')
+range_dict = frequency_to_range(read_dict('dates_frequency_dict'))
+#ranges_frequency_histogram(range_dict)
+write_dict(mydict, 'before_remove')
+
+relevant_anomalies = remove_unrelevant_dates(mydict)
+write_dict(relevant_anomalies, 'relevant')
+
+#Dictionary with pair of devices_interface and their Pearson Correlation score
+#{{(Device_Interface , Device_Interface): score},....}
+pearson_correlation(relevant_anomalies)
+
+print(mydict.keys())
+print(len(mydict.keys()))
+mydict_after_remove = remove_dates(mydict)
+write_dict(mydict_after_remove, 'after_remove')
+
 
