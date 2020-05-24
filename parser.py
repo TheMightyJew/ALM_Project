@@ -103,10 +103,8 @@ def ranges_frequency_histogram(range_dict):
     plt.show()
 
 def remove_unrelevant_dates(myDict):
-    startdate =datetime.datetime.strptime('25/01/2018','%d/%m/%Y')
-    enddate =datetime.datetime.strptime('27/07/2019','%d/%m/%Y')
-    #startdate =parse("25/01/2018")
-    #enddate =parse("27/07/2019")
+    startdate =datetime.datetime.strptime('26/01/2018','%d/%m/%Y')
+    enddate =datetime.datetime.strptime('26/07/2019','%d/%m/%Y')
 
     for interface in list(myDict.keys()):
         if(len(mydict[interface])==0):
@@ -114,7 +112,7 @@ def remove_unrelevant_dates(myDict):
         for date_anomaly in list(myDict[interface].keys()):
             tmp=datetime.datetime.strptime(date_anomaly.split(" ")[0],'%d/%m/%Y')
             #tmp=parse(date_anomaly.split(" ")[0])
-            if ((tmp < startdate) or (tmp > enddate)):
+            if tmp < startdate or tmp > enddate:
                 del mydict[interface][date_anomaly]
     for interface in list(myDict.keys()):
         if (len(mydict[interface]) == 0):
@@ -129,6 +127,7 @@ def intersection(lst1, lst2):
 
 def pearson_correlation(mydict):
     interfacePairs = list(combinations(mydict, 2))
+    pearsonDict = {}
     for interface1,interface2 in interfacePairs:
         lstAnomallies1 = []
         lstAnomallies2 = []
@@ -142,28 +141,30 @@ def pearson_correlation(mydict):
                 lstAnomallies2.append(mydict[interface2][identicalDate])
             lstAnomallies1=np.array(lstAnomallies1)
             lstAnomallies2=np.array(lstAnomallies2)
-            print(stats.pearsonr(lstAnomallies1,lstAnomallies2))
-    return
+            pearsonDict[(interface1, interface2)] = stats.pearsonr(lstAnomallies1,lstAnomallies2)[0]
+        else:
+            pearsonDict[(interface1, interface2)] = 0
+    return pearsonDict
 
 
 
-mydict = parse_file('netflow_data_small.csv')
-dates_frequency_dict = dates_frequency(mydict)
-write_dict(dates_frequency_dict, 'dates_frequency_dict')
-range_dict = frequency_to_range(read_dict('dates_frequency_dict'))
-#ranges_frequency_histogram(range_dict)
-write_dict(mydict, 'before_remove')
+mydict = parse_file('netflow_data.csv')
+# dates_frequency_dict = dates_frequency(mydict)
+# write_dict(dates_frequency_dict, 'dates_frequency_dict')
+# range_dict = frequency_to_range(read_dict('dates_frequency_dict'))
+# ranges_frequency_histogram(range_dict)
+# write_dict(mydict, 'before_remove')
+# mydict_after_remove = remove_dates(mydict)
+# write_dict(mydict_after_remove, 'after_remove')
 
 relevant_anomalies = remove_unrelevant_dates(mydict)
 write_dict(relevant_anomalies, 'relevant')
 
 #Dictionary with pair of devices_interface and their Pearson Correlation score
 #{{(Device_Interface , Device_Interface): score},....}
-pearson_correlation(relevant_anomalies)
+pearson_dict = pearson_correlation(relevant_anomalies)
+write_dict(pearson_dict, 'pearson')
 
-print(mydict.keys())
-print(len(mydict.keys()))
-mydict_after_remove = remove_dates(mydict)
-write_dict(mydict_after_remove, 'after_remove')
+
 
 
