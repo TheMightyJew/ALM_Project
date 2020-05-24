@@ -3,9 +3,21 @@ import numpy as np
 import csv
 import datetime
 import matplotlib.pyplot as plt
-from dateutil.parser import parse
 from itertools import combinations
 from scipy import stats
+import sys
+import csv
+
+maxInt = sys.maxsize
+
+while True:
+    try:
+        csv.field_size_limit(maxInt)
+        break
+    except OverflowError:
+        maxInt = int(maxInt / 10)
+
+
 def str_to_date(string):
     return datetime.datetime.strptime(string, '%Y-%m-%d %H:%M:%S')
 
@@ -39,7 +51,7 @@ def remove_dates(dict):
     maxDate = None
     for interface in dict.keys():
         minDate = min(dict[interface], key=dict[interface].get)
-        if maxDate ==  None or minDate > maxDate:
+        if maxDate == None or minDate > maxDate:
             maxDate = minDate
     for interface in dict.keys():
         for date in list(dict[interface].keys()):
@@ -102,50 +114,46 @@ def ranges_frequency_histogram(range_dict):
     plt.legend()
     plt.show()
 
-def remove_unrelevant_dates(myDict):
-    startdate =datetime.datetime.strptime('26/01/2018','%d/%m/%Y')
-    enddate =datetime.datetime.strptime('26/07/2019','%d/%m/%Y')
 
-    for interface in list(myDict.keys()):
-        if(len(mydict[interface])==0):
+def remove_unrelevant_dates(mydict):
+    start_date = datetime.datetime.strptime('2018-01-26', '%Y-%m-%d')
+    end_date = datetime.datetime.strptime('2019-07-26', '%Y-%m-%d')
+
+    for interface in list(mydict.keys()):
+        if len(mydict[interface]) == 0:
             continue
-        for date_anomaly in list(myDict[interface].keys()):
-            tmp=datetime.datetime.strptime(date_anomaly.split(" ")[0],'%d/%m/%Y')
-            #tmp=parse(date_anomaly.split(" ")[0])
-            if tmp < startdate or tmp > enddate:
+        for date_anomaly in list(mydict[interface].keys()):
+            date_only = datetime.datetime.strptime(date_anomaly.split(" ")[0], '%Y-%m-%d')
+            if date_only < start_date or date_only > end_date:
                 del mydict[interface][date_anomaly]
-    for interface in list(myDict.keys()):
-        if (len(mydict[interface]) == 0):
+    for interface in list(mydict.keys()):
+        if len(mydict[interface]) == 0:
             del mydict[interface]
     return mydict
-
-
-def intersection(lst1, lst2):
-    lst3 = [value for value in lst1 if value in lst2]
-    return lst3
 
 
 def pearson_correlation(mydict):
     interfacePairs = list(combinations(mydict, 2))
     pearsonDict = {}
-    for interface1,interface2 in interfacePairs:
+    counter = 0
+    for interface1, interface2 in interfacePairs:
+        counter += 1
         lstAnomallies1 = []
         lstAnomallies2 = []
-        keys1 = list(mydict[interface1].keys())
-        keys2 = list(mydict[interface2].keys())
-        identicalDates=intersection(keys1, keys2)
-        #should we have minimum identical dates?
-        if(len(identicalDates)>1):
+        keyset1 = set(mydict[interface1].keys())
+        keyset2 = set(mydict[interface2].keys())
+        identicalDates = keyset1.intersection(keyset2)
+        # should we have minimum identical dates?
+        if len(identicalDates) > 1:
             for identicalDate in identicalDates:
                 lstAnomallies1.append(mydict[interface1][identicalDate])
                 lstAnomallies2.append(mydict[interface2][identicalDate])
-            lstAnomallies1=np.array(lstAnomallies1)
-            lstAnomallies2=np.array(lstAnomallies2)
-            pearsonDict[(interface1, interface2)] = stats.pearsonr(lstAnomallies1,lstAnomallies2)[0]
+            # lstAnomallies1 = np.array(lstAnomallies1)
+            # lstAnomallies2 = np.array(lstAnomallies2)
+            pearsonDict[(interface1, interface2)] = stats.pearsonr(lstAnomallies1, lstAnomallies2)[0]
         else:
             pearsonDict[(interface1, interface2)] = 0
     return pearsonDict
-
 
 
 mydict = parse_file('netflow_data.csv')
@@ -156,15 +164,11 @@ mydict = parse_file('netflow_data.csv')
 # write_dict(mydict, 'before_remove')
 # mydict_after_remove = remove_dates(mydict)
 # write_dict(mydict_after_remove, 'after_remove')
-
 relevant_anomalies = remove_unrelevant_dates(mydict)
 write_dict(relevant_anomalies, 'relevant')
 
-#Dictionary with pair of devices_interface and their Pearson Correlation score
-#{{(Device_Interface , Device_Interface): score},....}
+# Dictionary with pair of devices_interface and their Pearson Correlation score
+# {{(Device_Interface , Device_Interface): score},....}
+# relevant_anomalies = read_dict('relevant')
 pearson_dict = pearson_correlation(relevant_anomalies)
 write_dict(pearson_dict, 'pearson')
-
-
-
-
